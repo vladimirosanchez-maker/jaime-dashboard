@@ -1,1 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
+<title>Crypto Dashboard</title>
+
+<style>
+
+body{
+background:#111;
+color:white;
+font-family:Arial,sans-serif;
+padding:15px;
+}
+
+h1{
+text-align:center;
+font-size:48px;
+}
+
+.info{
+margin:20px 0;
+font-size:18px;
+line-height:1.8;
+}
+
+button{
+width:100%;
+padding:18px;
+font-size:32px;
+font-weight:bold;
+border:none;
+border-radius:12px;
+margin-bottom:20px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:22px;
+}
+
+th{
+padding:15px 5px;
+border-bottom:2px solid #333;
+}
+
+td{
+padding:15px 5px;
+border-bottom:1px solid #333;
+text-align:center;
+}
+
+.verde{
+color:#00ff88;
+font-weight:bold;
+}
+
+.rojo{
+color:#ff5555;
+font-weight:bold;
+}
+
+.blanco{
+color:white;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Crypto Dashboard</h1>
+
+<div id="horas" class="info"></div>
+
+<button onclick="actualizarBase()">
+Actualizar Base Ahora
+</button>
+
+<table>
+
+<thead>
+<tr>
+<th>Activo</th>
+<th>Actual</th>
+<th>Base</th>
+<th>USD</th>
+<th>%</th>
+</tr>
+</thead>
+
+<tbody id="tabla"></tbody>
+
+</table>
+
+<script>
+
+const activos=[
+"BTCUSDT",
+"ETHUSDT",
+"SOLUSDT",
+"XRPUSDT",
+"AAVEUSDT",
+"PENGUUSDT"
+];
+
+function formato(valor){
+
+if(valor>=1000){
+
+return Number(valor)
+.toLocaleString("es-CO",{
+minimumFractionDigits:2,
+maximumFractionDigits:2
+});
+
+}
+
+if(valor>=1){
+
+return Number(valor)
+.toLocaleString("es-CO",{
+minimumFractionDigits:2,
+maximumFractionDigits:4
+});
+
+}
+
+return Number(valor)
+.toLocaleString("es-CO",{
+minimumFractionDigits:6,
+maximumFractionDigits:6
+});
+
+}
+
+async function cargar(){
+
+const tabla=document.getElementById("tabla");
+
+tabla.innerHTML="";
+
+let base=
+JSON.parse(
+localStorage.getItem("base")
+);
+
+let baseHora=
+localStorage.getItem("baseHora");
+
+if(!base){
+
+base={};
+
+for(let activo of activos){
+
+const r=
+await fetch(
+`https://api.binance.com/api/v3/ticker/price?symbol=${activo}`
+);
+
+const d=
+await r.json();
+
+base[activo]=
+parseFloat(d.price);
+
+}
+
+localStorage.setItem(
+"base",
+JSON.stringify(base)
+);
+
+baseHora=
+Date.now();
+
+localStorage.setItem(
+"baseHora",
+baseHora
+);
+
+}
+
+for(let activo of activos){
+
+const r=
+await fetch(
+`https://api.binance.com/api/v3/ticker/price?symbol=${activo}`
+);
+
+const d=
+await r.json();
+
+const actual=
+parseFloat(d.price);
+
+const valorBase=
+base[activo];
+
+const diferencia=
+actual-valorBase;
+
+const porcentaje=
+(diferencia/valorBase)*100;
+
+let clase="blanco";
+
+if(diferencia>0){
+clase="verde";
+}
+
+if(diferencia<0){
+clase="rojo";
+}
+
+tabla.innerHTML+=`
+
+<tr>
+
+<td>
+${activo.replace("USDT","")}
+</td>
+
+<td class="${clase}">
+${formato(actual)}
+</td>
+
+<td>
+${formato(valorBase)}
+</td>
+
+<td class="${clase}">
+${diferencia>0?"+":""}
+${formato(diferencia)}
+</td>
+
+<td class="${clase}">
+${porcentaje>0?"+":""}
+${porcentaje.toFixed(2)}%
+</td>
+
+</tr>
+
+`;
+
+}
+
+let proxima=
+new Date(
+parseInt(baseHora)
++
+(4*60*60*1000)
+);
+
+document.getElementById("horas")
+.innerHTML=
+
+`
+<b>Hora Base:</b>
+${new Date(parseInt(baseHora))
+.toLocaleTimeString('es-CO')}
+
+<br>
+
+<b>Hora Actual:</b>
+${new Date()
+.toLocaleTimeString('es-CO')}
+
+<br>
+
+<b>Próxima Base:</b>
+${proxima.toLocaleTimeString('es-CO')}
+`;
+
+}
+
+function actualizarBase(){
+
+localStorage.removeItem("base");
+
+localStorage.removeItem(
+"baseHora"
+);
+
+location.reload();
+
+}
+
+cargar();
+
+setInterval(
+cargar,
+1000
+);
+
+</script>
+
+</body>
+</html>
